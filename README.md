@@ -1,5 +1,9 @@
 # G915LedControl
 Adds tray icon to configure Logitech G915 so it has an indicator if Num Lock is active
 
+![image](https://github.com/Ni2Be/G915LedControl/assets/16502655/7d463dcc-27b8-47de-b733-dbfed06141e1)
+
+![numlock](https://github.com/Ni2Be/G915LedControl/assets/16502655/38af3306-95c1-4f9c-8307-41f189d3ee29)
+
 # Config file location
 %AppData%/LEDControl
