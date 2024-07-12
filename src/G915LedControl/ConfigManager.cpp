@@ -45,6 +45,12 @@ void ConfigManager::Load() {
     if (GetPrivateProfileStringW(L"PulseEffect", L"Duration", L"2000.0", buffer, 256, configPath.c_str())) {
         pulseDuration = static_cast<float>(_wtof(buffer));
     }
+    if (GetPrivateProfileStringW(L"PulseEffect", L"MinLight", L"0.0", buffer, 256, configPath.c_str())) {
+        pulseMinLight = static_cast<float>(_wtof(buffer));
+    }
+    if (GetPrivateProfileStringW(L"PulseEffect", L"MaxLight", L"100.0", buffer, 256, configPath.c_str())) {
+        pulseMaxLight = static_cast<float>(_wtof(buffer));
+    }
 
     currentEffect = static_cast<Effect>(GetPrivateProfileIntW(L"ActiveEffect", L"Type", (int)currentEffect, configPath.c_str()));
 }
@@ -54,14 +60,6 @@ void ConfigManager::Save() {
     std::wstring configPath = GetConfigFilePath();
 
     WCHAR buffer[256];
-
-    /*
-    
-    int solidRed = 100, solidGreen = 0, solidBlue = 0;
-    int pulseRed = 0, pulseGreen = 100, pulseBlue = 0;
-    float pulseDuration = 2000.0f;
-    Effect currentEffect = Effect::Solid;
-    */
 
     WritePrivateProfileStringW(L"SolidColor", L"Red", std::to_wstring(solidRed).c_str(), configPath.c_str());
     WritePrivateProfileStringW(L"SolidColor", L"Green", std::to_wstring(solidGreen).c_str(), configPath.c_str());
@@ -73,6 +71,12 @@ void ConfigManager::Save() {
 
     swprintf_s(buffer, L"%.1f", pulseDuration);
     WritePrivateProfileStringW(L"PulseEffect", L"Duration", buffer, configPath.c_str());
+
+    swprintf_s(buffer, L"%.1f", pulseMinLight);
+    WritePrivateProfileStringW(L"PulseEffect", L"MinLight", buffer, configPath.c_str());
+
+    swprintf_s(buffer, L"%.1f", pulseMaxLight);
+    WritePrivateProfileStringW(L"PulseEffect", L"MaxLight", buffer, configPath.c_str());
 
     WritePrivateProfileStringW(L"ActiveEffect", L"Type", std::to_wstring(static_cast<int>(currentEffect)).c_str(), configPath.c_str());
 }
@@ -92,4 +96,3 @@ void ConfigManager::SetPulseColor(int red, int green, int blue) {
 void ConfigManager::SetPulseDuration(float duration) {
     pulseDuration = duration;
 }
-

@@ -17,7 +17,6 @@
 
 #pragma comment(lib, "comctl32.lib")
 
-
 #define WM_TRAYICON (WM_USER + 1)
 #define ID_TRAYICON 1
 #define ID_EXIT 1001
@@ -26,16 +25,17 @@
 #define ID_RAINBOW 1004
 #define ID_CONFIG_SOLID 1005
 #define ID_CONFIG_PULSE 1006
+#define ID_HUE_WAVE 1007
 
 LEDController ledController;
 NOTIFYICONDATA nid = {};
 HMENU hMenu;
 
-
 // Global variables to store current configuration
 int solidRed = 100, solidGreen = 0, solidBlue = 0;
 int pulseRed = 0, pulseGreen = 100, pulseBlue = 0;
 float pulseDuration = 2000.0f;
+float pulseMinLight = 20.0f, pulseMaxLight = 100.0f;
 ConfigManager::Effect currentEffect = ConfigManager::Effect::Solid;
 ConfigManager configManager;
 
@@ -71,14 +71,18 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             return 0;
 
         case ID_PULSE:
-            ledController.StartPulseEffect(pulseRed, pulseGreen, pulseBlue, pulseDuration);
+            ledController.StartPulseEffect(pulseRed, pulseGreen, pulseBlue, pulseDuration, pulseMinLight, pulseMaxLight);
             configManager.SetEffect(ConfigManager::Effect::Pulse);
             return 0;
 
         case ID_RAINBOW:
-            ledController.SetSolidColor(solidRed, solidGreen, solidBlue);
             ledController.StartRainbowWave();
             configManager.SetEffect(ConfigManager::Effect::Rainbow);
+            return 0;
+
+        case ID_HUE_WAVE:
+            ledController.StartHueWave(pulseRed, pulseGreen, pulseBlue, pulseDuration, pulseMinLight, pulseMaxLight);
+            configManager.SetEffect(ConfigManager::Effect::HueWave);
             return 0;
 
         case ID_CONFIG_SOLID:
@@ -158,7 +162,6 @@ INT_PTR CALLBACK ConfigSolidDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPAR
     return (INT_PTR)FALSE;
 }
 
-
 INT_PTR CALLBACK ConfigPulseDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 {
     switch (Message)
@@ -169,18 +172,24 @@ INT_PTR CALLBACK ConfigPulseDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPAR
         SendDlgItemMessage(hwnd, IDC_SLIDER_GREEN, TBM_SETRANGE, TRUE, MAKELPARAM(0, 100));
         SendDlgItemMessage(hwnd, IDC_SLIDER_BLUE, TBM_SETRANGE, TRUE, MAKELPARAM(0, 100));
         SendDlgItemMessage(hwnd, IDC_SLIDER_DURATION, TBM_SETRANGE, TRUE, MAKELPARAM(500, 5000));
+        SendDlgItemMessage(hwnd, IDC_SLIDER_MIN_LIGHT, TBM_SETRANGE, TRUE, MAKELPARAM(0, 100));
+        SendDlgItemMessage(hwnd, IDC_SLIDER_MAX_LIGHT, TBM_SETRANGE, TRUE, MAKELPARAM(0, 100));
 
         // Set initial positions
         SendDlgItemMessage(hwnd, IDC_SLIDER_RED, TBM_SETPOS, TRUE, pulseRed);
         SendDlgItemMessage(hwnd, IDC_SLIDER_GREEN, TBM_SETPOS, TRUE, pulseGreen);
         SendDlgItemMessage(hwnd, IDC_SLIDER_BLUE, TBM_SETPOS, TRUE, pulseBlue);
         SendDlgItemMessage(hwnd, IDC_SLIDER_DURATION, TBM_SETPOS, TRUE, static_cast<LPARAM>(static_cast<int>(pulseDuration)));
+        SendDlgItemMessage(hwnd, IDC_SLIDER_MIN_LIGHT, TBM_SETPOS, TRUE, static_cast<LPARAM>(static_cast<int>(pulseMinLight)));
+        SendDlgItemMessage(hwnd, IDC_SLIDER_MAX_LIGHT, TBM_SETPOS, TRUE, static_cast<LPARAM>(static_cast<int>(pulseMaxLight)));
 
         // Update static text
         SetDlgItemInt(hwnd, IDC_STATIC_RED, pulseRed, FALSE);
         SetDlgItemInt(hwnd, IDC_STATIC_GREEN, pulseGreen, FALSE);
         SetDlgItemInt(hwnd, IDC_STATIC_BLUE, pulseBlue, FALSE);
         SetDlgItemInt(hwnd, IDC_STATIC_DURATION, static_cast<UINT>(pulseDuration), FALSE);
+        SetDlgItemInt(hwnd, IDC_STATIC_MIN_LIGHT, static_cast<UINT>(pulseMinLight), FALSE);
+        SetDlgItemInt(hwnd, IDC_STATIC_MAX_LIGHT, static_cast<UINT>(pulseMaxLight), FALSE);
 
         return (INT_PTR)TRUE;
 
@@ -188,18 +197,24 @@ INT_PTR CALLBACK ConfigPulseDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPAR
         if ((HWND)lParam == GetDlgItem(hwnd, IDC_SLIDER_RED) ||
             (HWND)lParam == GetDlgItem(hwnd, IDC_SLIDER_GREEN) ||
             (HWND)lParam == GetDlgItem(hwnd, IDC_SLIDER_BLUE) ||
-            (HWND)lParam == GetDlgItem(hwnd, IDC_SLIDER_DURATION))
+            (HWND)lParam == GetDlgItem(hwnd, IDC_SLIDER_DURATION) ||
+            (HWND)lParam == GetDlgItem(hwnd, IDC_SLIDER_MIN_LIGHT) ||
+            (HWND)lParam == GetDlgItem(hwnd, IDC_SLIDER_MAX_LIGHT))
         {
             int redVal = SendDlgItemMessage(hwnd, IDC_SLIDER_RED, TBM_GETPOS, 0, 0);
             int greenVal = SendDlgItemMessage(hwnd, IDC_SLIDER_GREEN, TBM_GETPOS, 0, 0);
             int blueVal = SendDlgItemMessage(hwnd, IDC_SLIDER_BLUE, TBM_GETPOS, 0, 0);
             int durationVal = SendDlgItemMessage(hwnd, IDC_SLIDER_DURATION, TBM_GETPOS, 0, 0);
+            int minLightVal = SendDlgItemMessage(hwnd, IDC_SLIDER_MIN_LIGHT, TBM_GETPOS, 0, 0);
+            int maxLightVal = SendDlgItemMessage(hwnd, IDC_SLIDER_MAX_LIGHT, TBM_GETPOS, 0, 0);
             SetDlgItemInt(hwnd, IDC_STATIC_RED, redVal, FALSE);
             SetDlgItemInt(hwnd, IDC_STATIC_GREEN, greenVal, FALSE);
             SetDlgItemInt(hwnd, IDC_STATIC_BLUE, blueVal, FALSE);
             SetDlgItemInt(hwnd, IDC_STATIC_DURATION, durationVal, FALSE);
+            SetDlgItemInt(hwnd, IDC_STATIC_MIN_LIGHT, minLightVal, FALSE);
+            SetDlgItemInt(hwnd, IDC_STATIC_MAX_LIGHT, maxLightVal, FALSE);
 
-            ledController.SetSolidColor(redVal, greenVal, blueVal);
+            ledController.StartPulseEffect(redVal, greenVal, blueVal, durationVal, minLightVal, maxLightVal);
         }
         return (INT_PTR)TRUE;
 
@@ -211,10 +226,15 @@ INT_PTR CALLBACK ConfigPulseDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPAR
             pulseGreen = SendDlgItemMessage(hwnd, IDC_SLIDER_GREEN, TBM_GETPOS, 0, 0);
             pulseBlue = SendDlgItemMessage(hwnd, IDC_SLIDER_BLUE, TBM_GETPOS, 0, 0);
             pulseDuration = static_cast<float>(SendDlgItemMessage(hwnd, IDC_SLIDER_DURATION, TBM_GETPOS, 0, 0));
+            pulseMinLight = static_cast<float>(SendDlgItemMessage(hwnd, IDC_SLIDER_MIN_LIGHT, TBM_GETPOS, 0, 0));
+            pulseMaxLight = static_cast<float>(SendDlgItemMessage(hwnd, IDC_SLIDER_MAX_LIGHT, TBM_GETPOS, 0, 0));
+
             configManager.SetPulseColor(pulseRed, pulseGreen, pulseBlue);
             configManager.SetPulseDuration(pulseDuration);
+            configManager.SetPulseMinLight(pulseMinLight);
+            configManager.SetPulseMaxLight(pulseMaxLight);
             configManager.Save();
-            ledController.StartPulseEffect(pulseRed, pulseGreen, pulseBlue, pulseDuration);
+            ledController.StartPulseEffect(pulseRed, pulseGreen, pulseBlue, pulseDuration, pulseMinLight, pulseMaxLight);
             EndDialog(hwnd, IDOK);
             return (INT_PTR)TRUE;
 
@@ -229,15 +249,74 @@ INT_PTR CALLBACK ConfigPulseDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
+    // Wait for 15 seconds otherwise the program will not start if in autostart folder
+    Sleep(15000);
+
     // Initialize Common Controls
     INITCOMMONCONTROLSEX icex;
     icex.dwSize = sizeof(INITCOMMONCONTROLSEX);
     icex.dwICC = ICC_WIN95_CLASSES;
     InitCommonControlsEx(&icex);
 
-    if (!ledController.Initialize())
+    // Test if windows service LGHUBUpdaterService is running
+    SC_HANDLE schSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_CONNECT);
+    if (schSCManager == NULL)
     {
-        MessageBox(NULL, L"LED Controller initialization failed.", L"Error", MB_OK | MB_ICONERROR);
+        MessageBox(NULL, L"Failed to open service control manager.", L"Error", MB_OK | MB_ICONERROR);
+        return 0;
+    }
+
+    SC_HANDLE schService = OpenService(schSCManager, L"LGHUBUpdaterService", SERVICE_QUERY_STATUS);
+    if (schService == NULL)
+    {
+        MessageBox(NULL, L"Failed to open LGHUBUpdaterService.", L"Error", MB_OK | MB_ICONERROR);
+        return 0;
+    }
+
+    // Wait up to 5 minutes for the service to start
+    SERVICE_STATUS_PROCESS serviceStatus;
+    DWORD dwBytesNeeded;
+    DWORD dwTimeout = 300000; // 5 minutes
+    DWORD dwStartTime = GetTickCount();
+    while (1)
+    {
+        if (!QueryServiceStatusEx(schService, SC_STATUS_PROCESS_INFO, (LPBYTE)&serviceStatus, sizeof(SERVICE_STATUS_PROCESS), &dwBytesNeeded))
+        {
+            MessageBox(NULL, L"Failed to query service status.", L"Error", MB_OK | MB_ICONERROR);
+            return 0;
+        }
+
+        if (serviceStatus.dwCurrentState == SERVICE_RUNNING)
+        {
+            break;
+        }
+
+        if (GetTickCount() - dwStartTime > dwTimeout)
+        {
+            MessageBox(NULL, L"Timed out waiting for LGHUBUpdaterService to start.", L"Error", MB_OK | MB_ICONERROR);
+            return 0;
+        }
+
+        Sleep(serviceStatus.dwWaitHint);
+    }
+
+    bool isInitialized = false;
+    // Try 5 minutes to initialize LED controller
+    for (int i = 0; i < 300; i++)
+    {
+        isInitialized = ledController.Initialize();
+        if (isInitialized)
+        {
+            break;
+        }
+
+        Sleep(1000);
+    }
+
+    if (!isInitialized)
+    {
+        // Failed to initialize LED controller
+        // Fail silently to not annoy the user
         return 0;
     }
 
@@ -252,7 +331,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     pulseGreen = configManager.GetPulseGreen();
     pulseBlue = configManager.GetPulseBlue();
     pulseDuration = configManager.GetPulseDuration();
+    pulseMinLight = configManager.GetPulseMinLight();
+    pulseMaxLight = configManager.GetPulseMaxLight();
     currentEffect = configManager.GetEffect();
+
+    // First set all keys to solid color
+    ledController.SetSolidColor(solidRed, solidGreen, solidBlue);
 
     switch (currentEffect)
     {
@@ -260,12 +344,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         ledController.SetSolidColor(solidRed, solidGreen, solidBlue);
         break;
     case ConfigManager::Effect::Pulse:
-        ledController.SetSolidColor(solidRed, solidGreen, solidBlue);
-        ledController.StartPulseEffect(pulseRed, pulseGreen, pulseBlue, pulseDuration);
+        ledController.StartPulseEffect(pulseRed, pulseGreen, pulseBlue, pulseDuration, pulseMinLight, pulseMaxLight);
         break;
     case ConfigManager::Effect::Rainbow:
-        ledController.SetSolidColor(solidRed, solidGreen, solidBlue);
         ledController.StartRainbowWave();
+        break;
+    case ConfigManager::Effect::HueWave:
+        ledController.StartHueWave(pulseRed, pulseGreen, pulseBlue, pulseDuration, pulseMinLight, pulseMaxLight);
         break;
     default:
         break;
@@ -324,6 +409,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     AppendMenu(hMenu, MF_STRING, ID_PULSE, L"Set Pulse Effect");
     AppendMenu(hMenu, MF_STRING, ID_CONFIG_PULSE, L"Configure Pulse Effect");
     AppendMenu(hMenu, MF_STRING, ID_RAINBOW, L"Set Rainbow Wave");
+    AppendMenu(hMenu, MF_STRING, ID_HUE_WAVE, L"Set Hue Wave");
     AppendMenu(hMenu, MF_SEPARATOR, 0, NULL);
     AppendMenu(hMenu, MF_STRING, ID_EXIT, L"Exit");
 

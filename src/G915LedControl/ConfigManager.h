@@ -15,9 +15,9 @@ public:
 		Solid,
 		Pulse,
         Rainbow,
+        HueWave
 	};
 
-    // Getters
     int GetSolidRed() const { return solidRed; }
     int GetSolidGreen() const { return solidGreen; }
     int GetSolidBlue() const { return solidBlue; }
@@ -26,8 +26,11 @@ public:
     int GetPulseBlue() const { return pulseBlue; }
     float GetPulseDuration() const { return pulseDuration; }
     Effect GetEffect() const { return currentEffect; }
+    float GetPulseMinLight() const { return pulseMinLight; }
+    float GetPulseMaxLight() const { return pulseMaxLight; }
 
-    // Setters
+    void SetPulseMinLight(float min) { pulseMinLight = min; }
+    void SetPulseMaxLight(float max) { pulseMaxLight = max; }
     void SetSolidColor(int red, int green, int blue);
     void SetPulseColor(int red, int green, int blue);
     void SetPulseDuration(float duration);
@@ -36,8 +39,10 @@ private:
     std::wstring GetConfigFilePath();
     void CreateConfigDirectory();
 
-    int solidRed = 100, solidGreen = 0, solidBlue = 0;
+    int solidRed = 50, solidGreen = 80, solidBlue = 0;
     int pulseRed = 0, pulseGreen = 100, pulseBlue = 0;
     float pulseDuration = 2000.0f;
+    float pulseMinLight = 20.0f;
+    float pulseMaxLight = 100.0f;
     Effect currentEffect = Effect::Solid;
 };

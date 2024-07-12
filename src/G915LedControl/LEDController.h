@@ -1,7 +1,8 @@
 #pragma once
-#include "LogitechLEDLib.h"
+#include <thread>
 #include <atomic>
 #include <vector>
+#include "LogitechLEDLib.h"
 
 class LEDController {
 public:
@@ -12,10 +13,10 @@ public:
     void Shutdown();
 
     void SetSolidColor(int red, int green, int blue);
-    void StartPulseEffect(int red, int green, int blue, float duration);
+    void StartPulseEffect(int red, int green, int blue, float duration, float minLight, float maxLight);
     void StartRainbowWave();
     void StopEffects();
-
+    void StartHueWave(int red, int green, int blue, float duration, float minLight, float maxLight);
     void UpdateLockKeys();
 
 private:
@@ -25,7 +26,14 @@ private:
     std::atomic<int> currentBlue;
     std::atomic<bool> isPulsing;
     std::atomic<bool> isRainbowWave;
-    std::atomic<float> pulseDuration;
+    std::atomic<float> pulseDuration; 
+    
+    std::atomic<float> pulseMinLight;
+    std::atomic<float> pulseMaxLight;
+
+    std::atomic<bool> isHueWave;
+
+    std::atomic<bool> isEffectRunning;
 
     const std::vector<LogiLed::KeyName> lockKeys;
 
