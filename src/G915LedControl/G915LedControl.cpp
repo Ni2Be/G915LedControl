@@ -23,9 +23,8 @@
 #define ID_SOLID 1002
 #define ID_PULSE 1003
 #define ID_RAINBOW 1004
-#define ID_CONFIG_SOLID 1005
-#define ID_CONFIG_PULSE 1006
-#define ID_HUE_WAVE 1007
+#define ID_HUE_WAVE 1005
+#define ID_CONFIG 1006
 
 LEDController ledController;
 NOTIFYICONDATA nid = {};
@@ -36,12 +35,15 @@ int solidRed = 100, solidGreen = 0, solidBlue = 0;
 int pulseRed = 0, pulseGreen = 100, pulseBlue = 0;
 float pulseDuration = 2000.0f;
 float pulseMinLight = 20.0f, pulseMaxLight = 100.0f;
-ConfigManager::Effect currentEffect = ConfigManager::Effect::Solid;
+Effect currentEffect = Effect::Solid;
 ConfigManager configManager;
 
 // Function prototypes
+INT_PTR CALLBACK ConfigDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);
 INT_PTR CALLBACK ConfigSolidDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);
 INT_PTR CALLBACK ConfigPulseDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);
+
+
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -57,113 +59,151 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             PostMessage(hwnd, WM_NULL, 0, 0);
         }
         return 0;
-
     case WM_COMMAND:
         switch (LOWORD(wParam))
         {
         case ID_EXIT:
             DestroyWindow(hwnd);
             return 0;
-
         case ID_SOLID:
             ledController.SetSolidColor(solidRed, solidGreen, solidBlue);
-            configManager.SetEffect(ConfigManager::Effect::Solid);
+            configManager.SetEffect(Effect::Solid);
             return 0;
-
         case ID_PULSE:
             ledController.StartPulseEffect(pulseRed, pulseGreen, pulseBlue, pulseDuration, pulseMinLight, pulseMaxLight);
-            configManager.SetEffect(ConfigManager::Effect::Pulse);
+            configManager.SetEffect(Effect::Pulse);
             return 0;
-
         case ID_RAINBOW:
             ledController.StartRainbowWave();
-            configManager.SetEffect(ConfigManager::Effect::Rainbow);
+            configManager.SetEffect(Effect::Rainbow);
             return 0;
-
         case ID_HUE_WAVE:
             ledController.StartHueWave(pulseRed, pulseGreen, pulseBlue, pulseDuration, pulseMinLight, pulseMaxLight);
-            configManager.SetEffect(ConfigManager::Effect::HueWave);
+            configManager.SetEffect(Effect::HueWave);
             return 0;
-
-        case ID_CONFIG_SOLID:
-            DialogBox(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_DIALOG_SOLID), hwnd, ConfigSolidDlgProc);
-            return 0;
-
-        case ID_CONFIG_PULSE:
-            DialogBox(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_DIALOG_PULSE), hwnd, ConfigPulseDlgProc);
+        case ID_CONFIG:
+            DialogBox(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_DIALOG_COMBINED), hwnd, ConfigDlgProc);
             return 0;
         }
         break;
-
     case WM_DESTROY:
         Shell_NotifyIcon(NIM_DELETE, &nid);
         PostQuitMessage(0);
         return 0;
     }
-
     return DefWindowProc(hwnd, uMsg, wParam, lParam);
 }
-INT_PTR CALLBACK ConfigSolidDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
+
+
+// Helper functions
+
+void UpdateStaticText(HWND hwnd)
 {
-    switch (Message)
-    {
-    case WM_INITDIALOG:
-        // Initialize sliders
-        SendDlgItemMessage(hwnd, IDC_SLIDER_RED, TBM_SETRANGE, TRUE, MAKELPARAM(0, 100));
-        SendDlgItemMessage(hwnd, IDC_SLIDER_GREEN, TBM_SETRANGE, TRUE, MAKELPARAM(0, 100));
-        SendDlgItemMessage(hwnd, IDC_SLIDER_BLUE, TBM_SETRANGE, TRUE, MAKELPARAM(0, 100));
-        // Set initial positions
-        SendDlgItemMessage(hwnd, IDC_SLIDER_RED, TBM_SETPOS, TRUE, solidRed);
-        SendDlgItemMessage(hwnd, IDC_SLIDER_GREEN, TBM_SETPOS, TRUE, solidGreen);
-        SendDlgItemMessage(hwnd, IDC_SLIDER_BLUE, TBM_SETPOS, TRUE, solidBlue);
-        // Update static text
-        SetDlgItemInt(hwnd, IDC_STATIC_RED, solidRed, FALSE);
-        SetDlgItemInt(hwnd, IDC_STATIC_GREEN, solidGreen, FALSE);
-        SetDlgItemInt(hwnd, IDC_STATIC_BLUE, solidBlue, FALSE);
-        return (INT_PTR)TRUE;
-
-    case WM_HSCROLL:
-        if ((HWND)lParam == GetDlgItem(hwnd, IDC_SLIDER_RED) ||
-            (HWND)lParam == GetDlgItem(hwnd, IDC_SLIDER_GREEN) ||
-            (HWND)lParam == GetDlgItem(hwnd, IDC_SLIDER_BLUE))
-        {
-            int redVal = SendDlgItemMessage(hwnd, IDC_SLIDER_RED, TBM_GETPOS, 0, 0);
-            int greenVal = SendDlgItemMessage(hwnd, IDC_SLIDER_GREEN, TBM_GETPOS, 0, 0);
-            int blueVal = SendDlgItemMessage(hwnd, IDC_SLIDER_BLUE, TBM_GETPOS, 0, 0);
-            SetDlgItemInt(hwnd, IDC_STATIC_RED, redVal, FALSE);
-            SetDlgItemInt(hwnd, IDC_STATIC_GREEN, greenVal, FALSE);
-            SetDlgItemInt(hwnd, IDC_STATIC_BLUE, blueVal, FALSE);
-            // Preview color change
-            ledController.SetSolidColor(redVal, greenVal, blueVal);
-        }
-        return (INT_PTR)TRUE;
-
-    case WM_COMMAND:
-        switch (LOWORD(wParam))
-        {
-        case IDOK:
-            solidRed = SendDlgItemMessage(hwnd, IDC_SLIDER_RED, TBM_GETPOS, 0, 0);
-            solidGreen = SendDlgItemMessage(hwnd, IDC_SLIDER_GREEN, TBM_GETPOS, 0, 0);
-            solidBlue = SendDlgItemMessage(hwnd, IDC_SLIDER_BLUE, TBM_GETPOS, 0, 0);
-            configManager.SetSolidColor(solidRed, solidGreen, solidBlue);
-            configManager.Save();
-            ledController.SetSolidColor(solidRed, solidGreen, solidBlue);
-            EndDialog(hwnd, IDOK);
-            return (INT_PTR)TRUE;
-
-        case IDCANCEL:
-            // Revert to original color
-            ledController.SetSolidColor(solidRed, solidGreen, solidBlue);
-            EndDialog(hwnd, IDCANCEL);
-            return (INT_PTR)TRUE;
-        }
-        break;
-    }
-    return (INT_PTR)FALSE;
+    SetDlgItemInt(hwnd, IDC_STATIC_RED, SendDlgItemMessage(hwnd, IDC_SLIDER_RED, TBM_GETPOS, 0, 0), FALSE);
+    SetDlgItemInt(hwnd, IDC_STATIC_GREEN, SendDlgItemMessage(hwnd, IDC_SLIDER_GREEN, TBM_GETPOS, 0, 0), FALSE);
+    SetDlgItemInt(hwnd, IDC_STATIC_BLUE, SendDlgItemMessage(hwnd, IDC_SLIDER_BLUE, TBM_GETPOS, 0, 0), FALSE);
+    SetDlgItemInt(hwnd, IDC_STATIC_DURATION, SendDlgItemMessage(hwnd, IDC_SLIDER_DURATION, TBM_GETPOS, 0, 0), FALSE);
+    SetDlgItemInt(hwnd, IDC_STATIC_MIN_LIGHT, SendDlgItemMessage(hwnd, IDC_SLIDER_MIN_LIGHT, TBM_GETPOS, 0, 0), FALSE);
+    SetDlgItemInt(hwnd, IDC_STATIC_MAX_LIGHT, SendDlgItemMessage(hwnd, IDC_SLIDER_MAX_LIGHT, TBM_GETPOS, 0, 0), FALSE);
 }
 
-INT_PTR CALLBACK ConfigPulseDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
+void ShowEffectControls(HWND hwnd, Effect effect)
 {
+    // Show/hide controls based on the selected effect
+    BOOL showColorControls = (effect != Effect::Rainbow);
+    BOOL showPulseControls = (effect == Effect::Pulse || effect == Effect::HueWave);
+
+    // Color controls
+    ShowWindow(GetDlgItem(hwnd, IDC_SLIDER_RED), showColorControls);
+    ShowWindow(GetDlgItem(hwnd, IDC_SLIDER_GREEN), showColorControls);
+    ShowWindow(GetDlgItem(hwnd, IDC_SLIDER_BLUE), showColorControls);
+    ShowWindow(GetDlgItem(hwnd, IDC_STATIC_RED), showColorControls);
+    ShowWindow(GetDlgItem(hwnd, IDC_STATIC_GREEN), showColorControls);
+    ShowWindow(GetDlgItem(hwnd, IDC_STATIC_BLUE), showColorControls);
+
+    // Pulse and HueWave specific controls
+    ShowWindow(GetDlgItem(hwnd, IDC_SLIDER_DURATION), showPulseControls);
+    ShowWindow(GetDlgItem(hwnd, IDC_SLIDER_MIN_LIGHT), showPulseControls);
+    ShowWindow(GetDlgItem(hwnd, IDC_SLIDER_MAX_LIGHT), showPulseControls);
+    ShowWindow(GetDlgItem(hwnd, IDC_STATIC_DURATION), showPulseControls);
+    ShowWindow(GetDlgItem(hwnd, IDC_STATIC_MIN_LIGHT), showPulseControls);
+    ShowWindow(GetDlgItem(hwnd, IDC_STATIC_MAX_LIGHT), showPulseControls);
+
+    // Update the dialog layout
+    InvalidateRect(hwnd, NULL, TRUE);
+}
+
+void PreviewEffect(HWND hwnd, Effect effect)
+{
+    int redVal = SendDlgItemMessage(hwnd, IDC_SLIDER_RED, TBM_GETPOS, 0, 0);
+    int greenVal = SendDlgItemMessage(hwnd, IDC_SLIDER_GREEN, TBM_GETPOS, 0, 0);
+    int blueVal = SendDlgItemMessage(hwnd, IDC_SLIDER_BLUE, TBM_GETPOS, 0, 0);
+    int durationVal = SendDlgItemMessage(hwnd, IDC_SLIDER_DURATION, TBM_GETPOS, 0, 0);
+    int minLightVal = SendDlgItemMessage(hwnd, IDC_SLIDER_MIN_LIGHT, TBM_GETPOS, 0, 0);
+    int maxLightVal = SendDlgItemMessage(hwnd, IDC_SLIDER_MAX_LIGHT, TBM_GETPOS, 0, 0);
+
+    switch (effect)
+    {
+    case Effect::Solid:
+        ledController.SetSolidColor(redVal, greenVal, blueVal);
+        break;
+    case Effect::Pulse:
+        ledController.StartPulseEffect(redVal, greenVal, blueVal, durationVal, minLightVal, maxLightVal);
+        break;
+    case Effect::Rainbow:
+        ledController.StartRainbowWave();
+        break;
+    case Effect::HueWave:
+        ledController.StartHueWave(redVal, greenVal, blueVal, durationVal, minLightVal, maxLightVal);
+        break;
+    }
+}
+
+void SaveSettings(HWND hwnd, Effect effect)
+{
+    int redVal = SendDlgItemMessage(hwnd, IDC_SLIDER_RED, TBM_GETPOS, 0, 0);
+    int greenVal = SendDlgItemMessage(hwnd, IDC_SLIDER_GREEN, TBM_GETPOS, 0, 0);
+    int blueVal = SendDlgItemMessage(hwnd, IDC_SLIDER_BLUE, TBM_GETPOS, 0, 0);
+    float durationVal = static_cast<float>(SendDlgItemMessage(hwnd, IDC_SLIDER_DURATION, TBM_GETPOS, 0, 0));
+    float minLightVal = static_cast<float>(SendDlgItemMessage(hwnd, IDC_SLIDER_MIN_LIGHT, TBM_GETPOS, 0, 0));
+    float maxLightVal = static_cast<float>(SendDlgItemMessage(hwnd, IDC_SLIDER_MAX_LIGHT, TBM_GETPOS, 0, 0));
+
+    configManager.SetEffect(effect);
+
+    switch (effect)
+    {
+    case Effect::Solid:
+        solidRed = redVal;
+        solidGreen = greenVal;
+        solidBlue = blueVal;
+        configManager.SetSolidColor(solidRed, solidGreen, solidBlue);
+        break;
+    case Effect::Pulse:
+    case Effect::HueWave:
+        pulseRed = redVal;
+        pulseGreen = greenVal;
+        pulseBlue = blueVal;
+        pulseDuration = durationVal;
+        pulseMinLight = minLightVal;
+        pulseMaxLight = maxLightVal;
+        configManager.SetPulseColor(pulseRed, pulseGreen, pulseBlue);
+        configManager.SetPulseDuration(pulseDuration);
+        configManager.SetPulseMinLight(pulseMinLight);
+        configManager.SetPulseMaxLight(pulseMaxLight);
+        break;
+    case Effect::Rainbow:
+        // No additional settings for Rainbow effect
+        break;
+    }
+
+    configManager.Save();
+    PreviewEffect(hwnd, effect);
+}
+
+INT_PTR CALLBACK ConfigDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
+{
+    static Effect currentEffect = Effect::Solid;
+
     switch (Message)
     {
     case WM_INITDIALOG:
@@ -175,21 +215,28 @@ INT_PTR CALLBACK ConfigPulseDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPAR
         SendDlgItemMessage(hwnd, IDC_SLIDER_MIN_LIGHT, TBM_SETRANGE, TRUE, MAKELPARAM(0, 100));
         SendDlgItemMessage(hwnd, IDC_SLIDER_MAX_LIGHT, TBM_SETRANGE, TRUE, MAKELPARAM(0, 100));
 
-        // Set initial positions
-        SendDlgItemMessage(hwnd, IDC_SLIDER_RED, TBM_SETPOS, TRUE, pulseRed);
-        SendDlgItemMessage(hwnd, IDC_SLIDER_GREEN, TBM_SETPOS, TRUE, pulseGreen);
-        SendDlgItemMessage(hwnd, IDC_SLIDER_BLUE, TBM_SETPOS, TRUE, pulseBlue);
-        SendDlgItemMessage(hwnd, IDC_SLIDER_DURATION, TBM_SETPOS, TRUE, static_cast<LPARAM>(static_cast<int>(pulseDuration)));
-        SendDlgItemMessage(hwnd, IDC_SLIDER_MIN_LIGHT, TBM_SETPOS, TRUE, static_cast<LPARAM>(static_cast<int>(pulseMinLight)));
-        SendDlgItemMessage(hwnd, IDC_SLIDER_MAX_LIGHT, TBM_SETPOS, TRUE, static_cast<LPARAM>(static_cast<int>(pulseMaxLight)));
+        // Set initial positions based on current effect
+        if (currentEffect == Effect::Solid) {
+            SendDlgItemMessage(hwnd, IDC_SLIDER_RED, TBM_SETPOS, TRUE, solidRed);
+            SendDlgItemMessage(hwnd, IDC_SLIDER_GREEN, TBM_SETPOS, TRUE, solidGreen);
+            SendDlgItemMessage(hwnd, IDC_SLIDER_BLUE, TBM_SETPOS, TRUE, solidBlue);
+            CheckRadioButton(hwnd, IDC_RADIO_SOLID, IDC_RADIO_HUEWAVE, IDC_RADIO_SOLID);
+        }
+        else {
+            SendDlgItemMessage(hwnd, IDC_SLIDER_RED, TBM_SETPOS, TRUE, pulseRed);
+            SendDlgItemMessage(hwnd, IDC_SLIDER_GREEN, TBM_SETPOS, TRUE, pulseGreen);
+            SendDlgItemMessage(hwnd, IDC_SLIDER_BLUE, TBM_SETPOS, TRUE, pulseBlue);
+            SendDlgItemMessage(hwnd, IDC_SLIDER_DURATION, TBM_SETPOS, TRUE, static_cast<LPARAM>(static_cast<int>(pulseDuration)));
+            SendDlgItemMessage(hwnd, IDC_SLIDER_MIN_LIGHT, TBM_SETPOS, TRUE, static_cast<LPARAM>(static_cast<int>(pulseMinLight)));
+            SendDlgItemMessage(hwnd, IDC_SLIDER_MAX_LIGHT, TBM_SETPOS, TRUE, static_cast<LPARAM>(static_cast<int>(pulseMaxLight)));
+            CheckRadioButton(hwnd, IDC_RADIO_SOLID, IDC_RADIO_HUEWAVE, IDC_RADIO_PULSE + static_cast<int>(currentEffect) - 1);
+        }
 
         // Update static text
-        SetDlgItemInt(hwnd, IDC_STATIC_RED, pulseRed, FALSE);
-        SetDlgItemInt(hwnd, IDC_STATIC_GREEN, pulseGreen, FALSE);
-        SetDlgItemInt(hwnd, IDC_STATIC_BLUE, pulseBlue, FALSE);
-        SetDlgItemInt(hwnd, IDC_STATIC_DURATION, static_cast<UINT>(pulseDuration), FALSE);
-        SetDlgItemInt(hwnd, IDC_STATIC_MIN_LIGHT, static_cast<UINT>(pulseMinLight), FALSE);
-        SetDlgItemInt(hwnd, IDC_STATIC_MAX_LIGHT, static_cast<UINT>(pulseMaxLight), FALSE);
+        UpdateStaticText(hwnd);
+
+        // Show/hide controls based on current effect
+        ShowEffectControls(hwnd, currentEffect);
 
         return (INT_PTR)TRUE;
 
@@ -201,44 +248,36 @@ INT_PTR CALLBACK ConfigPulseDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPAR
             (HWND)lParam == GetDlgItem(hwnd, IDC_SLIDER_MIN_LIGHT) ||
             (HWND)lParam == GetDlgItem(hwnd, IDC_SLIDER_MAX_LIGHT))
         {
-            int redVal = SendDlgItemMessage(hwnd, IDC_SLIDER_RED, TBM_GETPOS, 0, 0);
-            int greenVal = SendDlgItemMessage(hwnd, IDC_SLIDER_GREEN, TBM_GETPOS, 0, 0);
-            int blueVal = SendDlgItemMessage(hwnd, IDC_SLIDER_BLUE, TBM_GETPOS, 0, 0);
-            int durationVal = SendDlgItemMessage(hwnd, IDC_SLIDER_DURATION, TBM_GETPOS, 0, 0);
-            int minLightVal = SendDlgItemMessage(hwnd, IDC_SLIDER_MIN_LIGHT, TBM_GETPOS, 0, 0);
-            int maxLightVal = SendDlgItemMessage(hwnd, IDC_SLIDER_MAX_LIGHT, TBM_GETPOS, 0, 0);
-            SetDlgItemInt(hwnd, IDC_STATIC_RED, redVal, FALSE);
-            SetDlgItemInt(hwnd, IDC_STATIC_GREEN, greenVal, FALSE);
-            SetDlgItemInt(hwnd, IDC_STATIC_BLUE, blueVal, FALSE);
-            SetDlgItemInt(hwnd, IDC_STATIC_DURATION, durationVal, FALSE);
-            SetDlgItemInt(hwnd, IDC_STATIC_MIN_LIGHT, minLightVal, FALSE);
-            SetDlgItemInt(hwnd, IDC_STATIC_MAX_LIGHT, maxLightVal, FALSE);
-
-            ledController.StartPulseEffect(redVal, greenVal, blueVal, durationVal, minLightVal, maxLightVal);
+            UpdateStaticText(hwnd);
+            PreviewEffect(hwnd, currentEffect);
         }
         return (INT_PTR)TRUE;
 
     case WM_COMMAND:
         switch (LOWORD(wParam))
         {
-        case IDOK:
-            pulseRed = SendDlgItemMessage(hwnd, IDC_SLIDER_RED, TBM_GETPOS, 0, 0);
-            pulseGreen = SendDlgItemMessage(hwnd, IDC_SLIDER_GREEN, TBM_GETPOS, 0, 0);
-            pulseBlue = SendDlgItemMessage(hwnd, IDC_SLIDER_BLUE, TBM_GETPOS, 0, 0);
-            pulseDuration = static_cast<float>(SendDlgItemMessage(hwnd, IDC_SLIDER_DURATION, TBM_GETPOS, 0, 0));
-            pulseMinLight = static_cast<float>(SendDlgItemMessage(hwnd, IDC_SLIDER_MIN_LIGHT, TBM_GETPOS, 0, 0));
-            pulseMaxLight = static_cast<float>(SendDlgItemMessage(hwnd, IDC_SLIDER_MAX_LIGHT, TBM_GETPOS, 0, 0));
+        case IDC_RADIO_SOLID:
+        case IDC_RADIO_PULSE:
+        case IDC_RADIO_RAINBOW:
+        case IDC_RADIO_HUEWAVE:
+            currentEffect = static_cast<Effect>(LOWORD(wParam) - IDC_RADIO_SOLID);
+            ShowEffectControls(hwnd, currentEffect);
+            //PreviewEffect(hwnd, currentEffect);
+            return (INT_PTR)TRUE;
 
-            configManager.SetPulseColor(pulseRed, pulseGreen, pulseBlue);
-            configManager.SetPulseDuration(pulseDuration);
-            configManager.SetPulseMinLight(pulseMinLight);
-            configManager.SetPulseMaxLight(pulseMaxLight);
-            configManager.Save();
-            ledController.StartPulseEffect(pulseRed, pulseGreen, pulseBlue, pulseDuration, pulseMinLight, pulseMaxLight);
+        case IDOK:
+            SaveSettings(hwnd, currentEffect);
             EndDialog(hwnd, IDOK);
             return (INT_PTR)TRUE;
 
         case IDCANCEL:
+            // Revert to original settings
+            if (configManager.GetEffect() == Effect::Solid) {
+                ledController.SetSolidColor(solidRed, solidGreen, solidBlue);
+            }
+            else {
+                ledController.StartPulseEffect(pulseRed, pulseGreen, pulseBlue, pulseDuration, pulseMinLight, pulseMaxLight);
+            }
             EndDialog(hwnd, IDCANCEL);
             return (INT_PTR)TRUE;
         }
@@ -250,7 +289,7 @@ INT_PTR CALLBACK ConfigPulseDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPAR
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
     // Wait for 15 seconds otherwise the program will not start if in autostart folder
-    Sleep(15000);
+    //Sleep(15000);
 
     // Initialize Common Controls
     INITCOMMONCONTROLSEX icex;
@@ -340,16 +379,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     switch (currentEffect)
     {
-    case ConfigManager::Effect::Solid:
+    case Effect::Solid:
         ledController.SetSolidColor(solidRed, solidGreen, solidBlue);
         break;
-    case ConfigManager::Effect::Pulse:
+    case Effect::Pulse:
         ledController.StartPulseEffect(pulseRed, pulseGreen, pulseBlue, pulseDuration, pulseMinLight, pulseMaxLight);
         break;
-    case ConfigManager::Effect::Rainbow:
+    case Effect::Rainbow:
         ledController.StartRainbowWave();
         break;
-    case ConfigManager::Effect::HueWave:
+    case Effect::HueWave:
         ledController.StartHueWave(pulseRed, pulseGreen, pulseBlue, pulseDuration, pulseMinLight, pulseMaxLight);
         break;
     default:
@@ -361,13 +400,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     wc.lpfnWndProc = WindowProc;
     wc.hInstance = hInstance;
     wc.lpszClassName = L"LEDControlTrayApp";
-
     RegisterClass(&wc);
-
     HWND hwnd = CreateWindowEx(0, L"LEDControlTrayApp", L"LED Control",
         WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
         CW_USEDEFAULT, CW_USEDEFAULT, NULL, NULL, hInstance, NULL);
-
     if (hwnd == NULL)
     {
         MessageBox(NULL, L"Window creation failed.", L"Error", MB_OK | MB_ICONERROR);
@@ -388,7 +424,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         GetSystemMetrics(SM_CXSMICON),
         GetSystemMetrics(SM_CYSMICON),
         LR_DEFAULTCOLOR);
-
     if (hIcon)
     {
         nid.hIcon = hIcon;
@@ -398,18 +433,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         // Fallback to default icon if custom icon fails to load
         nid.hIcon = LoadIcon(NULL, IDI_APPLICATION);
     }
-
     wcscpy_s(nid.szTip, L"LED Control");
     Shell_NotifyIcon(NIM_ADD, &nid);
 
     // Create tray menu
     hMenu = CreatePopupMenu();
-    AppendMenu(hMenu, MF_STRING, ID_SOLID, L"Set Solid Color");
-    AppendMenu(hMenu, MF_STRING, ID_CONFIG_SOLID, L"Configure Solid Color");
-    AppendMenu(hMenu, MF_STRING, ID_PULSE, L"Set Pulse Effect");
-    AppendMenu(hMenu, MF_STRING, ID_CONFIG_PULSE, L"Configure Pulse Effect");
-    AppendMenu(hMenu, MF_STRING, ID_RAINBOW, L"Set Rainbow Wave");
-    AppendMenu(hMenu, MF_STRING, ID_HUE_WAVE, L"Set Hue Wave");
+    AppendMenu(hMenu, MF_STRING, ID_SOLID, L"Solid Color");
+    AppendMenu(hMenu, MF_STRING, ID_PULSE, L"Pulse Effect");
+    AppendMenu(hMenu, MF_STRING, ID_RAINBOW, L"Rainbow Wave");
+    AppendMenu(hMenu, MF_STRING, ID_HUE_WAVE, L"Hue Wave");
+    AppendMenu(hMenu, MF_SEPARATOR, 0, NULL);
+    AppendMenu(hMenu, MF_STRING, ID_CONFIG, L"Configure Effect");
     AppendMenu(hMenu, MF_SEPARATOR, 0, NULL);
     AppendMenu(hMenu, MF_STRING, ID_EXIT, L"Exit");
 
@@ -425,6 +459,5 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
 
     ledController.Shutdown();
-
     return 0;
 }

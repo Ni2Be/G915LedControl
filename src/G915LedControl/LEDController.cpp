@@ -7,7 +7,7 @@
 
 LEDController::LEDController()
     : running(true), currentRed(0), currentGreen(0), currentBlue(0),
-    isPulsing(false), isRainbowWave(false), isHueWave(false), pulseDuration(2000.0f),
+    currentEffect(Effect::None), pulseDuration(2000.0f),
     pulseMinLight(0.0f), pulseMaxLight(100.0f),
     lockKeys({ LogiLed::KeyName::NUM_LOCK, LogiLed::KeyName::CAPS_LOCK, LogiLed::KeyName::SCROLL_LOCK }) {}
 
@@ -29,6 +29,7 @@ void LEDController::SetSolidColor(int red, int green, int blue) {
     currentRed = red;
     currentGreen = green;
     currentBlue = blue;
+    currentEffect = Effect::Solid;
 
     // Make sure the values are within the correct range (0-100)
     red = max(0, min(100, red));
@@ -61,8 +62,7 @@ void LEDController::StartPulseEffect(int red, int green, int blue, float duratio
     pulseDuration = duration;
     pulseMinLight = minLight;
     pulseMaxLight = maxLight;
-    isPulsing = true;
-    isHueWave = false;
+    currentEffect = Effect::Pulse;
     isEffectRunning = true;
 
     std::thread(&LEDController::PulseKeys, this).detach();
@@ -85,27 +85,44 @@ void LEDController::StartHueWave(int red, int green, int blue, float duration, f
     pulseDuration = duration;
     pulseMinLight = minLight;
     pulseMaxLight = maxLight;
-    isPulsing = true;
-    isHueWave = true;
+    currentEffect = Effect::HueWave;
     isEffectRunning = true;
 
     std::thread(&LEDController::PulseKeys, this).detach();
 }
 
+void LEDController::StartRainbowWave() {
+    StopEffects();
+    currentEffect = Effect::Rainbow;
+    isEffectRunning = true;
+    std::thread(&LEDController::RainbowWave, this).detach();
+}
+
 void LEDController::StopEffects() {
-    isPulsing = false;
-    isRainbowWave = false;
-    isHueWave = false;
+    currentEffect = Effect::None;
     isEffectRunning = false;
     // Give the effect thread time to stop
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 }
 
 
-void LEDController::StartRainbowWave() {
-    StopEffects();
-    isRainbowWave = true;
-    std::thread(&LEDController::RainbowWave, this).detach();
+Effect LEDController::GetCurrentEffect() const {
+    return currentEffect;
+}
+
+void LEDController::GetSolidColor(int& red, int& green, int& blue) const {
+    red = currentRed;
+    green = currentGreen;
+    blue = currentBlue;
+}
+
+void LEDController::GetPulseSettings(int& red, int& green, int& blue, float& duration, float& minLight, float& maxLight) const {
+    red = currentRed;
+    green = currentGreen;
+    blue = currentBlue;
+    duration = pulseDuration;
+    minLight = pulseMinLight;
+    maxLight = pulseMaxLight;
 }
 
 void LEDController::UpdateLockKeys() {
@@ -131,7 +148,7 @@ void LEDController::PulseKeys() {
         float elapsedTime = std::chrono::duration<float, std::milli>(currentTime - startTime).count();
 
         int r_this_frame, g_this_frame, b_this_frame;
-        if (isHueWave) {
+        if (currentEffect == Effect::HueWave) {
             float hue = fmodf(elapsedTime / hueWaveDuration * 360.0f, 360.0f);
             HSVtoRGB(hue, 100, 100, r_this_frame, g_this_frame, b_this_frame);
         }
@@ -226,7 +243,7 @@ void LEDController::RainbowWave() {
 
     auto startTime = std::chrono::high_resolution_clock::now();
 
-    while (running && isRainbowWave) {
+    while (running && currentEffect == Effect::Rainbow) {
         auto currentTime = std::chrono::high_resolution_clock::now();
         float elapsedTime = std::chrono::duration<float, std::milli>(currentTime - startTime).count();
 
