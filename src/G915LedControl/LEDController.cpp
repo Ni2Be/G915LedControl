@@ -160,7 +160,7 @@ void LEDController::UpdateLockKeys() {
 
 void LEDController::PulseKeys() {
     auto startTime = std::chrono::high_resolution_clock::now();
-    const float hueWaveDuration = 10000.0f;  // Duration of one complete hue cycle in ms
+    const float hueWaveDuration = 15000.0f;  // Duration of one complete hue cycle in ms
 
     while (isEffectRunning) {
         auto currentTime = std::chrono::high_resolution_clock::now();
