@@ -5,6 +5,15 @@
 #include "LogitechLEDLib.h"
 #include "ConfigManager.h"
 
+/**
+ * @class LEDController
+ * @brief Controls the LED lighting effects for Logitech peripherals.
+ *
+ * This class interfaces with the Logitech LED SDK to apply various
+ * lighting effects to compatible devices. It handles different effect types
+ * such as solid colors, pulsing effects, rainbow waves, and hue waves.
+ * It also manages the state of lock key indicators.
+ */
 class LEDController {
 public:
     LEDController();
@@ -38,4 +47,5 @@ private:
     void RainbowWave();
     void SetStaticLighting();
     void HSVtoRGB(float H, float S, float V, int& R, int& G, int& B);
+    std::tuple<int, int, int> GetCurrentColor() const;
 };

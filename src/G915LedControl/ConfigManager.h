@@ -3,6 +3,14 @@
 #include <windows.h>
 #include <string>
 
+/**
+ * @enum Effect
+ * @brief Enumerates the available LED effect types.
+ *
+ * This enum defines the different types of LED effects that can be
+ * applied to the devices. It is used across the ConfigManager,
+ * LEDController, and UIManager to maintain consistency in effect selection.
+ */
 enum class Effect {
     Solid,
     Pulse,
@@ -11,6 +19,15 @@ enum class Effect {
     None
 };
 
+/**
+ * @class ConfigManager
+ * @brief Manages the configuration settings for the LED control application.
+ *
+ * This class is responsible for loading, saving, and providing access to
+ * user-defined settings such as colors, effect types, and effect parameters.
+ * It interacts with a configuration file to persist settings between
+ * application sessions.
+ */
 class ConfigManager {
 public:
     ConfigManager();

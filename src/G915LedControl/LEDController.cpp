@@ -26,23 +26,33 @@ void LEDController::Shutdown() {
 
 void LEDController::SetSolidColor(int red, int green, int blue) {
     StopEffects();
+
     currentRed = red;
     currentGreen = green;
     currentBlue = blue;
+
     currentEffect = Effect::Solid;
 
+    std::tuple<int, int, int> color = GetCurrentColor();
+
+    // Set the color using the Logitech SDK
+    LogiLedSetLighting(std::get<0>(color), std::get<1>(color), std::get<2>(color));
+
+}
+
+std::tuple<int, int, int> LEDController::GetCurrentColor() const {
+
     // Make sure the values are within the correct range (0-100)
-    red = max(0, min(100, red));
-    green = max(0, min(100, green));
-    blue = max(0, min(100, blue));
+    int red = max(0, min(100, currentRed));
+    int green = max(0, min(100, currentGreen));
+    int blue = max(0, min(100, currentBlue));
 
     // Convert from 0-100 range to 0-255 range
     int r = static_cast<int>(red * 2.55f);
     int g = static_cast<int>(green * 2.55f);
     int b = static_cast<int>(blue * 2.55f);
 
-    // Set the color using the Logitech SDK
-    LogiLedSetLighting(r, g, b);
+	return { r, g, b };
 }
 
 void LEDController::StartPulseEffect(int red, int green, int blue, float duration, float minLight, float maxLight) {
@@ -64,6 +74,10 @@ void LEDController::StartPulseEffect(int red, int green, int blue, float duratio
     pulseMaxLight = maxLight;
     currentEffect = Effect::Pulse;
     isEffectRunning = true;
+
+    // Make sure all keys are lit up with a color
+    std::tuple<int, int, int> color = GetCurrentColor();
+    LogiLedSetLighting(std::get<0>(color), std::get<1>(color), std::get<2>(color));
 
     std::thread(&LEDController::PulseKeys, this).detach();
 }
@@ -88,6 +102,10 @@ void LEDController::StartHueWave(int red, int green, int blue, float duration, f
     currentEffect = Effect::HueWave;
     isEffectRunning = true;
 
+    // Make sure all keys are lit up with a color
+    std::tuple<int, int, int> color = GetCurrentColor();
+    LogiLedSetLighting(std::get<0>(color), std::get<1>(color), std::get<2>(color));
+
     std::thread(&LEDController::PulseKeys, this).detach();
 }
 
@@ -95,6 +113,7 @@ void LEDController::StartRainbowWave() {
     StopEffects();
     currentEffect = Effect::Rainbow;
     isEffectRunning = true;
+
     std::thread(&LEDController::RainbowWave, this).detach();
 }
 
